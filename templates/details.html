@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ disease.name }} - Detail View</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='details.css') }}" />
+</head>
+
+<body data-theme="dark">
+
+    <div class="buttons">
+        <button class="home">🏡Home</button>
+        <button class="theme-toggle" onclick="toggleTheme()">☀️ Light Mode</button>
+    </div>
+
+    <div class="container">
+        <div class="main-layout">
+            <div class="content-area">
+                <div class="navigation">
+                    <a href="/disease-details" class="back-button">
+                        ← Back to All Conditions
+                    </a>
+                    <select class="condition-selector" onchange="changeCondition(this.value)">
+                        <option value="">Select a condition...</option>
+                        {% for condition in all_conditions %}
+                        <option value="{{ condition.name }}" {% if condition.name == disease.name %}selected{% endif %}>
+                            {{ condition.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="disease-header">
+                    <h1 class="disease-title" id="disease-title">{{ disease.name }}</h1>
+                    <div id="badges-container">
+                        <span class="classification-badge classification-{{ disease.classification }}" id="classification-badge">
+                            {{ disease.classification.replace('-', ' ').upper() }}
+                        </span>
+                        <span class="urgency-badge urgency-{{ disease.urgency_level.lower() }}" id="urgency-badge">
+                            {{ disease.urgency_level }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="quick-facts" id="quick-facts">
+                    <div class="quick-facts-header">
+                        <h3>📊 Quick Medical Overview</h3>
+                    </div>
+                    <div class="fact-grid">
+                        <div class="fact-item">
+                            <span class="fact-icon">🏷️</span>
+                            <div class="fact-label">Classification</div>
+                            <div class="fact-value" id="fact-classification">{{ disease.classification.replace('-', ' ').title() }}</div>
+                        </div>
+                        <div class="fact-item">
+                            <span class="fact-icon">🔍</span>
+                            <div class="fact-label">Known Causes</div>
+                            <div class="fact-value" id="fact-causes">{{ disease.causes|length }}</div>
+                        </div>
+                        <div class="fact-item">
+                            <span class="fact-icon">⚠️</span>
+                            <div class="fact-label">Risk Factors</div>
+                            <div class="fact-value" id="fact-harms">{{ disease.potential_harms|length }}</div>
+                        </div>
+                        <div class="fact-item">
+                            <span class="fact-icon">📈</span>
+                            <div class="fact-label">Progression Points</div>
+                            <div class="fact-value" id="fact-progression">{{ disease.possible_progression|length }}</div>
+                        </div>
+                        <div class="fact-item">
+                            <span class="fact-icon">🚨</span>
+                            <div class="fact-label">Urgency Level</div>
+                            <div class="fact-value" id="fact-urgency">{{ disease.urgency_level }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-grid" id="content-grid">
+                    <div class="section-card">
+                        <h2 class="section-title">
+                            <span class="section-icon">🔍</span>
+                            Causes & Risk Factors
+                        </h2>
+                        <div class="section-content">
+                            <ul class="content-list" id="causes-list">
+                                {% for cause in disease.causes %}
+                                <li>{{ cause }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <h2 class="section-title">
+                            <span class="section-icon">⚠️</span>
+                            Potential Harms & Symptoms
+                        </h2>
+                        <div class="section-content">
+                            <ul class="content-list" id="harms-list">
+                                {% for harm in disease.potential_harms %}
+                                <li>{{ harm }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <h2 class="section-title">
+                            <span class="section-icon">📈</span>
+                            Disease Progression
+                        </h2>
+                        <div class="section-content">
+                            <ul class="content-list" id="progression-list">
+                                {% for progression in disease.possible_progression %}
+                                <li>{{ progression }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h3>📸 Sample Images</h3>
+                    <button class="refresh-images" onclick="loadRandomImages()">🔄 Refresh</button>
+                </div>
+                <div class="image-gallery" id="image-gallery">
+                    <!-- Images will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+<script>
+    // Store the current disease image path
+const currentImagePath = "{{ disease.image_path }}";
+
+function toggleTheme() {
+    const body = document.body;
+    const button = document.querySelector('.theme-toggle');
+    
+    if (body.getAttribute('data-theme') === 'dark') {
+        body.removeAttribute('data-theme');
+        button.textContent = '🌙 Dark Mode';
+    } else {
+        body.setAttribute('data-theme', 'dark');
+        button.textContent = '☀️ Light Mode';
+    }
+}
+
+function changeCondition(conditionName) {
+    if (conditionName === '' || conditionName === null) {
+        return;
+    }
+    
+    // Convert condition name to URL-friendly format
+    const urlFriendlyName = conditionName.toLowerCase()
+                                         .replace(/[^a-z0-9\s]/g, '')
+                                         .replace(/\s+/g, '-');
+    
+    // Navigate to the disease page
+    window.location.href = `/disease/${urlFriendlyName}`;
+}
+
+async function loadRandomImages() {
+    const gallery = document.getElementById('image-gallery');
+    gallery.innerHTML = '<div class="loading">Loading images...</div>';
+    
+    try {
+        console.log('Loading images from path:', currentImagePath);
+        
+        const response = await fetch(`/api/random-images/${encodeURIComponent(currentImagePath)}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('API response:', data);
+        
+        gallery.innerHTML = '';
+        
+        if (data.images && data.images.length > 0) {
+            data.images.forEach((imagePath, index) => {
+                const imageContainer = document.createElement('div');
+                imageContainer.className = 'image-container';
+                imageContainer.style.opacity = '0';
+                imageContainer.style.transform = 'translateY(20px)';
+                imageContainer.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                
+                const img = document.createElement('img');
+                img.src = imagePath;
+                img.alt = `{{ disease.name }} sample ${index + 1}`;
+                img.className = 'sample-image';
+                img.loading = 'lazy';
+                
+                // Add error handling for individual images
+                img.onerror = function() {
+                    console.error('Failed to load image:', imagePath);
+                    this.src = '/static/placeholder-image.png'; // Fallback image
+                    this.alt = 'Image not available';
+                };
+                
+                img.onload = function() {
+                    console.log('Successfully loaded image:', imagePath);
+                };
+                
+                // Add click to expand functionality
+                img.onclick = () => expandImage(imagePath);
+                
+                imageContainer.appendChild(img);
+                gallery.appendChild(imageContainer);
+                
+                // Add entrance animation
+                setTimeout(() => {
+                    imageContainer.style.opacity = '1';
+                    imageContainer.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        } else {
+            const message = data.error || data.message || 'No images available for this condition.';
+            gallery.innerHTML = `<p class="no-images">${message}</p>`;
+            console.log('No images found or error:', message);
+        }
+    } catch (error) {
+        console.error('Error loading images:', error);
+        gallery.innerHTML = '<p class="error-message">Error loading images. Please try again.</p>';
+    }
+}
+
+function expandImage(imagePath) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'image-modal';
+    modal.onclick = () => modal.remove();
+    
+    const img = document.createElement('img');
+    img.src = imagePath;
+    img.className = 'expanded-image';
+    img.onclick = (e) => e.stopPropagation();
+    
+    // Add error handling for expanded image
+    img.onerror = function() {
+        console.error('Failed to load expanded image:', imagePath);
+        modal.remove();
+        alert('Failed to load full-size image');
+    };
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✕';
+    closeBtn.className = 'close-modal';
+    closeBtn.onclick = () => modal.remove();
+    
+    modal.appendChild(img);
+    modal.appendChild(closeBtn);
+    document.body.appendChild(modal);
+}
+
+const home = document.querySelector('.home');
+home.addEventListener('click', function () {
+    window.location.href = '/';
+});
+
+// Add entrance animations
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.section-card');
+    
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(30px)';
+        card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        
+        setTimeout(() => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 200);
+    });
+    
+    // Load initial random images
+    loadRandomImages();
+}); 
+</script>
+
+</body>
+</html>

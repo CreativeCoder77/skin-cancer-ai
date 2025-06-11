@@ -1,0 +1,10 @@
+Flask==2.3.2
+Werkzeug==2.3.1
+numpy
+pandas
+tensorflow
+keras
+opencv-python
+scikit-learn
+matplotlib
+Pillow

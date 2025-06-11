@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Skin Conditions Database - Home</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary-blue: #2563eb;
+      --primary-blue-dark: #1d4ed8;
+      --secondary-blue: #3b82f6;
+      --light-blue: #dbeafe;
+      --very-light-blue: #eff6ff;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f9fafb;
+      --border-color: #e5e7eb;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --danger-color: #ef4444;
+      --bt-back: #3b82f6;
+
+    }
+
+    [data-theme="dark"] {
+      --primary-blue: #3b82f6;
+      --primary-blue-dark: #2563eb;
+      --secondary-blue: #60a5fa;
+      --light-blue: #1e3a8a;
+      --very-light-blue: #1e40af;
+      --text-primary: #f9fafb;
+      --text-secondary: #d1d5db;
+      --bg-primary: #111827;
+      --bg-secondary: #1B262C;
+      --border-color: #374151;
+      --success-color: #34d399;
+      --warning-color: #fbbf24;
+      --danger-color: #f87171;
+      --bt-back: #00809D;
+
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-secondary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      transition: all 0.3s ease;
+    }
+
+    .top-buttons {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 0.75rem;
+      z-index: 1000;
+    }
+
+    .top-buttons button {
+      background: var(--bt-back);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+    }
+
+    .top-buttons button:hover {
+      background: var(--primary-blue-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      padding: 3rem 2rem;
+      background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+      border-radius: 20px;
+      color: white;
+      box-shadow: 0 15px 40px rgba(37, 99, 235, 0.3);
+    }
+
+    .header h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      font-weight: 800;
+    }
+
+    .header p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .diseases-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .disease-button {
+      display: block;
+      text-decoration: none;
+      background: var(--bg-primary);
+      border: 2px solid var(--border-color);
+      border-radius: 15px;
+      padding: 2rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .disease-button:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+      border-color: var(--primary-blue);
+    }
+
+    .disease-button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.1), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .disease-button:hover::before {
+      left: 100%;
+    }
+
+    .disease-name {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .disease-classification {
+      display: inline-block;
+      padding: 0.4rem 1rem;
+      border-radius: 25px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 1rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .classification-cancer {
+      background: var(--danger-color);
+      color: white;
+    }
+
+    .classification-precancerous {
+      background: var(--warning-color);
+      color: white;
+    }
+
+    .classification-benign {
+      background: var(--success-color);
+      color: white;
+    }
+
+    .classification-non-cancerous {
+      background: var(--secondary-blue);
+      color: white;
+    }
+
+    .disease-preview {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      position: relative;
+      z-index: 2;
+    }
+
+    .arrow-icon {
+      position: absolute;
+      top: 50%;
+      right: 1.5rem;
+      transform: translateY(-50%);
+      font-size: 1.5rem;
+      color: var(--primary-blue);
+      transition: all 0.3s ease;
+    }
+
+    .disease-button:hover .arrow-icon {
+      transform: translateY(-50%) translateX(5px);
+    }
+
+    .stats-section {
+      background: var(--bg-primary);
+      border-radius: 15px;
+      padding: 2rem;
+      margin-bottom: 3rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .stats-title {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      color: var(--text-primary);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 1.5rem;
+      background: var(--very-light-blue);
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--primary-blue);
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    @media (max-width: 768px) {
+      .diseases-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .container {
+        padding: 1rem;
+      }
+
+      .header h1 {
+        font-size: 2.2rem;
+      }
+
+      .header {
+        padding: 2rem 1.5rem;
+      }
+
+      .top-buttons {
+        flex-direction: column;
+        top: 10px;
+        right: 10px;
+      }
+
+      .top-buttons button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <div class="top-buttons">
+    <button class="home">🏡Home</button>
+    <button onclick="toggleTheme()">☀️ Light Mode</button>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <h1>🩺 Skin Conditions Database</h1>
+      <p>Explore comprehensive medical information about various cancer related skin conditions. Click on any condition below to learn more about its causes, symptoms, and treatment options.</p>
+    </div>
+
+    <div class="stats-section">
+      <h2 class="stats-title">Database Overview</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-number">{{ skin_conditions|length }}</div>
+          <div class="stat-label">Total Conditions</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ skin_conditions|selectattr("classification", "equalto", "cancer")|list|length }}</div>
+          <div class="stat-label">Cancerous</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ skin_conditions|selectattr("classification", "equalto", "benign")|list|length }}</div>
+          <div class="stat-label">Benign</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ skin_conditions|selectattr("classification", "equalto", "precancerous")|list|length }}</div>
+          <div class="stat-label">Precancerous</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">{{ skin_conditions|selectattr("classification", "equalto", "non-cancerous")|list|length }}</div>
+          <div class="stat-label">Non-cancerous</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="diseases-grid">
+      {% for condition in skin_conditions %}
+    <a href="{{ url_for('disease', disease_name=condition.name.replace(' ', '-').lower()) }}" class="disease-button">
+        <h3 class="disease-name">{{ condition.name }}</h3>
+        <span class="disease-classification classification-{{ condition.classification }}">
+          {{ condition.classification }}
+        </span>
+        <p class="disease-preview">
+          {{ condition.causes[0][:80] }}{% if condition.causes[0]|length > 80 %}...{% endif %}
+        </p>
+        <span class="arrow-icon">→</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const body = document.body;
+      const button = document.querySelector('.top-buttons button:last-child');
+      if (body.getAttribute('data-theme') === 'dark') {
+        body.removeAttribute('data-theme');
+        button.textContent = '🌙 Dark Mode';
+      } else {
+        body.setAttribute('data-theme', 'dark');
+        button.textContent = '☀️ Light Mode';
+      }
+    }
+
+   
+
+    // Add entrance animations
+    document.addEventListener('DOMContentLoaded', function () {
+      const buttons = document.querySelectorAll('.disease-button');
+      buttons.forEach((button, index) => {
+        button.style.opacity = '0';
+        button.style.transform = 'translateY(30px)';
+        button.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        setTimeout(() => {
+          button.style.opacity = '1';
+          button.style.transform = 'translateY(0)';
+        }, index * 100);
+      });
+    });
+
+    const home = document.querySelector('.home');
+    home.addEventListener('click', function () {
+      window.location.href = '/';
+    })
+  </script>
+</body>
+</html>

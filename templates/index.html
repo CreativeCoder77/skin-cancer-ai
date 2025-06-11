@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+{% block body %}
+
+
+<body data-theme="dark">
+
+        <div class="main-content">
+            <div class="upload-section">
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📸</div>
+                    <div class="upload-text">Click to upload your image</div>
+                    <div class="upload-subtext">Maximum file size: 16MB</div>
+                </div>
+                <input type="file" id="fileInput" class="file-input" accept="image/*"
+                onchange="handleFileUpload(event)">
+                <div class="instructions">
+                    <h3>📋 Upload Instructions</h3>
+                    <ul class="instruction-list">
+                        <li>Take a clear, well-lit photo</li>
+                        <li>Position camera close to the skin area</li>
+                        <li>Ensure the affected area fills the frame</li>
+                        <li>Avoid shadows and blurry images</li>
+                        <li>Use natural lighting when possible</li>
+                        <li>Supported formats: PNG, JPG, JPEG, GIF, BMP, WEBP</li>
+                    </ul>
+                </div>
+                
+                
+                <div class="disclaimer">
+                    <div class="disclaimer-title"> Medical Disclaimer</div>
+                    <p>It's essential to consult a healthcare provider for an accurate diagnosis and appropriate
+                        treatment if you experience any persistent or concerning skin changes.</p>
+                </div>
+            </div>
+
+            <div class="results-section">
+                <div class="results-header">
+                    <div class="results-title">📊 Analysis Results</div>
+                    <div class="nav-tabs">
+                        <div class="nav-tab active" onclick="switchTab('overview')">Overview</div>
+                        <div class="nav-tab" onclick="switchTab('probabilities')">Probabilities</div>
+                        <div class="nav-tab" onclick="switchTab('information')">Information</div>
+                        <div class="nav-tab" onclick="switchTab('nextsteps')">Next Steps</div>
+                    </div>
+                </div>
+
+                <div id="overview-tab" class="tab-content active">
+                    <div class="placeholder">
+                        <div class="placeholder-icon">🔍</div>
+                        <h3>Upload an image to begin analysis</h3>
+                        <p>Select a clear photo of the skin condition for AI-powered diagnosis</p>
+                    </div>
+                </div>
+
+                <div id="probabilities-tab" class="tab-content">
+                    <div class="placeholder">
+                        <div class="placeholder-icon">📈</div>
+                        <h3>Probability breakdown will appear here</h3>
+                        <p>Detailed confidence scores for all detected conditions</p>
+                    </div>
+                </div>
+
+                <div id="information-tab" class="tab-content">
+                    <div class="placeholder">
+                        <div class="placeholder-icon">📚</div>
+                        <h3>Detailed condition information</h3>
+                        <p>Comprehensive details about the detected condition</p>
+                    </div>
+                </div>
+
+                <div id="nextsteps-tab" class="tab-content">
+                    <div class="placeholder">
+                        <div class="placeholder-icon">🏥</div>
+                        <h3>Recommended next steps</h3>
+                        <p>Professional guidance and treatment recommendations</p>
+                    </div>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing your image...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    
+
+{% endblock %}
+
+
+
+</body>
+</html>

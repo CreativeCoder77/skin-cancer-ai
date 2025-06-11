@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skin Analysis - AI Diagnosis</title>
+    <link rel="stylesheet" href="static/styles.css">
+    <script src="static/script.js" defer></script>
+</head>
+
+<div class="container">
+    <div class="header">
+        <div class="buttons">
+            <button class="about-disease">🦠 Disease Database</button>
+            <button class="theme-toggle" onclick="toggleTheme()">☀️ Light Mode</button>
+        </div>
+        <h1>🔬 AI Skin Analysis</h1>
+        <p class="subtitle">Advanced dermatological condition detection using machine learning</p>
+    </div>
+
+<script>
+    const about_disease = document.querySelector('.about-disease');
+    about_disease.addEventListener('click', () => {
+        window.location.href = '/disease-details';
+    })
+</script>
+
+    {% block body %}
+    {% endblock %}
