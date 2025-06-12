@@ -129,18 +129,6 @@ function displayOverview(data) {
     <p><strong>Primary Diagnosis:</strong> ${data.top_prediction.class}</p>
 </div>
 
-<!-- Modal for classification information -->
-<div id="classification-modal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 id="modal-title">Classification Information</h3>
-            <span class="close-btn" onclick="closeClassificationModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <div id="modal-content-body"></div>
-        </div>
-    </div>
-</div>
 `;
 }
 
@@ -271,34 +259,33 @@ function showClassificationInfo(classification) {
             <div class="condition-group benign-group">
                 <h5>Benign</h5>
                 <ul>
-                    <li>Vascular Lesion</li>
-                    <li>Dermatofibroma</li>
-                    <li>Melanocytic Nevus (Moles)</li>
-                    <li>Benign Keratosis</li>
+                    <a href="/disease/vascular-lesion" style="text-decoration: none;"><li>Vascular Lesion</li></a>
+                    <a href="/disease/Dermatofibroma" style="text-decoration: none;"><li>Dermatofibroma</li></a>
+                    <a href="/disease/Melanocytic-Nevus" style="text-decoration: none;"><li>Melanocytic Nevus (Moles)</li></a>
+                    <a href="/disease/Benign-Keratosis" style="text-decoration: none;"><li>Benign Keratosis</li></a>
                 </ul>
             </div>
             
             <div class="condition-group non-cancerous-group">
                 <h5>Non-Cancerous</h5>
                 <ul>
-                    <li>Tinea (Ringworm)</li>
-                    <li>Candidiasis</li>
-                    <li>Atopic Dermatitis</li>
+                    <a href="/disease/tinea-ringworm-candidiasis" style="text-decoration: none;"><li>Tinea (Ringworm) Candidiasis</li></a>
+                    <a href="/disease/atopic-dermatitis" style="text-decoration: none;"><li>Atopic Dermatitis</li></a>
                 </ul>
             </div>
             
             <div class="condition-group cancer-group">
                 <h5>Cancer</h5>
                 <ul>
-                    <li>Melanoma</li>
-                    <li>Squamous Cell Carcinoma</li>
+                    <a href="/disease/melanoma" style="text-decoration: none;"><li>Melanoma</li></a>
+                    <a href="/disease/squamous-cell-carcinoma" style="text-decoration: none;"><li>Squamous Cell Carcinoma</li></a>
                 </ul>
             </div>
             
             <div class="condition-group precancerous-group">
                 <h5>Precancerous</h5>
                 <ul>
-                    <li>Actinic Keratosis</li>
+                    <a href="/disease/actinic-keratosis" style="text-decoration: none;"><li>Actinic Keratosis</li></a>
                 </ul>
             </div>
         </div>

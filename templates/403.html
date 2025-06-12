@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Access Denied</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      --accent-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      
+      --text-primary: #f7fafc;
+      --text-secondary: #cbd5e0;
+      --text-muted: #a0aec0;
+      --bg-primary: #1B262C;
+      --bg-secondary: #2d3748;
+      --bg-tertiary: #4a5568;
+      --border-color: #4a5568;
+      --border-light: #2d3748;
+      
+      --glass-bg: rgba(255, 255, 255, 0.06);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at 50% 0%, hsl(220, 47%, 15%), hsl(222, 47%, 11%) 50%);;
+      background-size: 300% 300%;
+      animation: gradientShift 12s ease infinite;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-primary);
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: var(--shadow-xl);
+      backdrop-filter: blur(15px);
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: scale(1.02);
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+    }
+
+    .emoji {
+      font-size: 4rem;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: #f56565;
+      margin-bottom: 12px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+
+    .error-code {
+      background: var(--bg-secondary);
+      color: var(--text-muted);
+      padding: 8px 18px;
+      border-radius: 8px;
+      margin-top: 20px;
+      display: inline-block;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+
+    .footer-note {
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="emoji">🔒</div>
+    <h1>Access Blocked</h1>
+    <p>Your connection has been restricted due to suspicious activity.</p>
+    <p>If this is a mistake, please contact the administrator with your IP address and time of access.</p>
+    <div class="error-code">Error Code: 403 - Security Firewall</div>
+    <div class="footer-note">Firewall Triggered · IP Monitored · Rate Limit Enforced</div>
+  </div>
+</body>
+</html>

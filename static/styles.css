@@ -74,7 +74,7 @@
     --text-primary: #f7fafc;
     --text-secondary: #cbd5e0;
     --text-muted: #a0aec0;
-    --bg-primary: #1B262C;
+    --bg-primary: radial-gradient(circle at 50% 0%, hsl(220, 47%, 15%), hsl(222, 47%, 11%) 50%);
     --bg-secondary: #2d3748;
     --bg-tertiary: #4a5568;
     --border-color: #4a5568;
@@ -636,7 +636,6 @@ h1 {
     color: white;
     font-size: 0.875rem;
     box-shadow: var(--shadow-sm);
-    animation: pulse 2s ease-in-out infinite;
 }
 
 .confidence-high {
@@ -827,6 +826,7 @@ h1 {
 .info-card li {
     padding-left: var(--space-md);
     position: relative;
+    cursor: pointer;
     color: var(--text-secondary);
     transition: all var(--transition-base);
 }
@@ -996,19 +996,23 @@ h1 {
         backdrop-filter: blur(8px);
     }
 }
-
 .modal-content {
     background: var(--bg-primary);
     padding: 0;
     border-radius: var(--radius-2xl);
-    width: 90%;
-    max-width: 650px;
-    max-height: 85vh;
+    width: 50%;
+    max-width: 750px;
+    max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow-2xl);
     animation: slideInScale 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid var(--border-color);
-    position: relative;
+    
+    /* Positioning in top right corner */
+    position: absolute;
+    top: 0rem;
+    right: 0rem;
+    margin: 0;
 }
 
 .modal-content::before {
@@ -1427,6 +1431,7 @@ html {
     .nav-tabs {
         flex-wrap: wrap;
         gap: var(--space-sm);
+        
     }
 
     h1 {
@@ -1564,5 +1569,11 @@ html {
         --border-color: #ffffff;
         --text-secondary: #ffffff;
         --bg-secondary: #000000;
+    }
+}
+
+@media (max-width: 595px) {
+    .tab-content{
+        margin-top: 80px;
     }
 }

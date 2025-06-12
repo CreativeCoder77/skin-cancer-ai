@@ -61,7 +61,7 @@ skin-cancer-ai/
 1. Clone this repository:
 
    ```bash
-   git clone https://github.com/yourusername/skin-cancer-ai.git
+   https://github.com/CreativeCoder77/skin-cancer-ai.git
    cd skin-cancer-ai
    ```
 
@@ -84,10 +84,10 @@ skin-cancer-ai/
 * Multilingual disease information
 * User health history integration
 
-## ⚠️ Disclaimer
+
+⚠️ Disclaimer
 
 > This tool is for **educational** and **preliminary diagnostic** purposes only. Always consult a certified dermatologist or healthcare provider for medical decisions.
 
 
 ---
-
