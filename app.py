@@ -10,6 +10,7 @@ from flask import Flask, request, render_template, jsonify, abort, send_from_dir
 from werkzeug.utils import secure_filename
 import base64
 from functools import wraps
+import pytz
 
 # Suppress TensorFlow logs and warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -37,9 +38,14 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
 
 # Security and Monitoring Configuration
 DDOS_THRESHOLD = 1000000  # requests per minute from single IP
-SUSPICIOUS_THRESHOLD = 50  # suspicious requests per minute
+SUSPICIOUS_THRESHOLD = 100  # suspicious requests per minute
 RATE_LIMIT_WINDOW = 60  # seconds
-MAX_REQUESTS_PER_WINDOW = 30  # max requests per IP per window
+MAX_REQUESTS_PER_WINDOW = 100  # max requests per IP per window per minute
+
+# JSON file paths for persistent storage
+BLOCKED_IPS_FILE = 'blocked_ips.json'
+WHITELISTED_IPS_FILE = 'whitelisted_ips.json'
+ACCESS_LOG_FILE = "access_log.json"
 
 # Global monitoring variables
 class ServerMonitor:
@@ -53,6 +59,11 @@ class ServerMonitor:
         self.ip_requests = defaultdict(deque)  # IP -> timestamps
         self.suspicious_ips = set()
         self.blocked_ips = set()
+        self.whitelisted_ips = set()  # NEW: Whitelisted IPs
+        
+        # Load persistent data
+        self.load_blocked_ips()
+        self.load_whitelisted_ips()
         
         # NEW: Track active IPs with additional info
         self.active_ips = {}  # IP -> {last_seen, request_count, user_agent, first_seen}
@@ -72,6 +83,136 @@ class ServerMonitor:
         
         # Start monitoring thread
         self.start_monitoring()
+    
+    def load_blocked_ips(self):
+        """Load blocked IPs from JSON file"""
+        try:
+            if os.path.exists(BLOCKED_IPS_FILE):
+                with open(BLOCKED_IPS_FILE, 'r') as f:
+                    data = json.load(f)
+                    # Convert list back to set and load with metadata
+                    for ip_data in data.get('blocked_ips', []):
+                        if isinstance(ip_data, dict):
+                            self.blocked_ips.add(ip_data['ip'])
+                        else:
+                            # Handle old format (just IP strings)
+                            self.blocked_ips.add(ip_data)
+                print(f"Loaded {len(self.blocked_ips)} blocked IPs from file")
+            else:
+                print("No blocked IPs file found, starting with empty list")
+        except Exception as e:
+            print(f"Error loading blocked IPs: {e}")
+            self.blocked_ips = set()
+    
+    def save_blocked_ips(self):
+        """Save blocked IPs to JSON file"""
+        try:
+            # Create data structure with metadata
+            blocked_data = []
+            for ip in self.blocked_ips:
+                blocked_data.append({
+                    'ip': ip,
+                    'blocked_at': datetime.now().isoformat(),
+                    'reason': 'Security violation or manual block'
+                })
+            
+            data = {
+                'blocked_ips': blocked_data,
+                'last_updated': datetime.now().isoformat()
+            }
+            
+            with open(BLOCKED_IPS_FILE, 'w') as f:
+                json.dump(data, f, indent=2)
+            print(f"Saved {len(self.blocked_ips)} blocked IPs to file")
+        except Exception as e:
+            print(f"Error saving blocked IPs: {e}")
+    
+    def load_whitelisted_ips(self):
+        """Load whitelisted IPs from JSON file"""
+        try:
+            if os.path.exists(WHITELISTED_IPS_FILE):
+                with open(WHITELISTED_IPS_FILE, 'r') as f:
+                    data = json.load(f)
+                    # Convert list back to set
+                    for ip_data in data.get('whitelisted_ips', []):
+                        if isinstance(ip_data, dict):
+                            self.whitelisted_ips.add(ip_data['ip'])
+                        else:
+                            # Handle old format (just IP strings)
+                            self.whitelisted_ips.add(ip_data)
+                print(f"Loaded {len(self.whitelisted_ips)} whitelisted IPs from file")
+            else:
+                print("No whitelisted IPs file found, starting with empty list")
+        except Exception as e:
+            print(f"Error loading whitelisted IPs: {e}")
+            self.whitelisted_ips = set()
+    
+    def save_whitelisted_ips(self):
+        """Save whitelisted IPs to JSON file"""
+        try:
+            # Create data structure with metadata
+            whitelisted_data = []
+            for ip in self.whitelisted_ips:
+                whitelisted_data.append({
+                    'ip': ip,
+                    'whitelisted_at': datetime.now().isoformat(),
+                    'reason': 'Trusted IP - bypass all security checks'
+                })
+            
+            data = {
+                'whitelisted_ips': whitelisted_data,
+                'last_updated': datetime.now().isoformat()
+            }
+            
+            with open(WHITELISTED_IPS_FILE, 'w') as f:
+                json.dump(data, f, indent=2)
+            print(f"Saved {len(self.whitelisted_ips)} whitelisted IPs to file")
+        except Exception as e:
+            print(f"Error saving whitelisted IPs: {e}")
+    
+    def add_blocked_ip(self, ip, reason="Manual block"):
+        """Add IP to blocked list and save to file"""
+        if ip not in self.whitelisted_ips:  # Don't block whitelisted IPs
+            self.blocked_ips.add(ip)
+            self.save_blocked_ips()
+            self.log_security_event("IP_BLOCKED", ip, reason)
+            return True
+        else:
+            self.log_security_event("BLOCK_ATTEMPT_WHITELISTED", ip, f"Attempt to block whitelisted IP: {reason}")
+            return False
+    
+    def remove_blocked_ip(self, ip):
+        """Remove IP from blocked list and save to file"""
+        if ip in self.blocked_ips:
+            self.blocked_ips.remove(ip)
+            self.save_blocked_ips()
+            self.log_security_event("IP_UNBLOCKED", ip, "Manually unblocked")
+            return True
+        return False
+    
+    def add_whitelisted_ip(self, ip, reason="Manual whitelist"):
+        """Add IP to whitelist and save to file"""
+        self.whitelisted_ips.add(ip)
+        # If IP was blocked, remove it from blocked list
+        if ip in self.blocked_ips:
+            self.blocked_ips.remove(ip)
+            self.save_blocked_ips()
+        self.save_whitelisted_ips()
+        self.log_security_event("IP_WHITELISTED", ip, reason)
+        return True
+    
+    def remove_whitelisted_ip(self, ip):
+        """Remove IP from whitelist and save to file"""
+        if ip in self.whitelisted_ips:
+            self.whitelisted_ips.remove(ip)
+            self.save_whitelisted_ips()
+            self.log_security_event("IP_REMOVED_FROM_WHITELIST", ip, "Manually removed from whitelist")
+            return True
+        return False
+    
+    def is_ip_whitelisted(self, ip):
+        """Check if IP is whitelisted"""
+        return ip in self.whitelisted_ips
     
     def start_monitoring(self):
         """Start background monitoring thread"""
@@ -130,11 +271,14 @@ class ServerMonitor:
             'user_agent': user_agent or 'Unknown'
         })
         
-        # Check for suspicious activity
-        if len(self.ip_requests[ip]) > DDOS_THRESHOLD:
-            if ip not in self.suspicious_ips:
-                self.suspicious_ips.add(ip)
-                self.log_security_event("DDoS_DETECTED", ip, f"Exceeded {DDOS_THRESHOLD} requests")
+        # Check for suspicious activity (only for non-whitelisted IPs)
+        if not self.is_ip_whitelisted(ip):
+            if len(self.ip_requests[ip]) > DDOS_THRESHOLD:
+                if ip not in self.suspicious_ips:
+                    self.suspicious_ips.add(ip)
+                    self.log_security_event("DDoS_DETECTED", ip, f"Exceeded {DDOS_THRESHOLD} requests")
+                    # Auto-block DDoS IPs
+                    self.add_blocked_ip(ip, f"Auto-blocked: DDoS detected - {DDOS_THRESHOLD} requests")
 
     def log_error(self, ip, error_type, details):
         """Log error and update metrics"""
@@ -147,7 +291,8 @@ class ServerMonitor:
             'timestamp': datetime.now().isoformat(),
             'type': event_type,
             'ip': ip,
-            'details': details
+            'details': details,
+            'is_whitelisted': self.is_ip_whitelisted(ip)
         }
         self.security_events.append(event)
         print(f"SECURITY EVENT: {event_type} from {ip} - {details}")
@@ -157,6 +302,10 @@ class ServerMonitor:
         current_time = time.time()
         
         for ip, timestamps in self.ip_requests.items():
+            # Skip whitelisted IPs
+            if self.is_ip_whitelisted(ip):
+                continue
+                
             if len(timestamps) > SUSPICIOUS_THRESHOLD:
                 if ip not in self.suspicious_ips:
                     self.suspicious_ips.add(ip)
@@ -164,7 +313,9 @@ class ServerMonitor:
                                           f"High request rate: {len(timestamps)} requests")
     
     def is_ip_blocked(self, ip):
-        """Check if IP is blocked"""
+        """Check if IP is blocked (whitelisted IPs are never blocked)"""
+        if self.is_ip_whitelisted(ip):
+            return False
         return ip in self.blocked_ips
     
     def get_stats(self):
@@ -190,7 +341,8 @@ class ServerMonitor:
                 'last_endpoint': info['last_endpoint'],
                 'user_agent': info['user_agent'][:100],  # Truncate long user agents
                 'is_suspicious': ip in self.suspicious_ips,
-                'is_blocked': ip in self.blocked_ips
+                'is_blocked': ip in self.blocked_ips,
+                'is_whitelisted': ip in self.whitelisted_ips
             })
         
         # Sort by last seen (most recent first) and limit to 50
@@ -206,11 +358,15 @@ class ServerMonitor:
             'errors_per_second': list(self.errors_per_second),
             'suspicious_ips_count': len(self.suspicious_ips),
             'blocked_ips_count': len(self.blocked_ips),
+            'whitelisted_ips_count': len(self.whitelisted_ips),  # NEW
             'recent_security_events': list(self.security_events)[-10:],  # Last 10 events
             'avg_response_time': sum(self.response_times) / len(self.response_times) if self.response_times else 0,
             'active_ips': active_ips_list,  # NEW: Active IPs data
-            'unique_ips_count': len(self.active_ips)  # NEW: Count of unique IPs  
+            'unique_ips_count': len(self.active_ips),  # NEW: Count of unique IPs
+            'blocked_ips_list': list(self.blocked_ips),  # NEW: List of blocked IPs
+            'whitelisted_ips_list': list(self.whitelisted_ips)  # NEW: List of whitelisted IPs
         }
+
 # Initialize monitor
 monitor = ServerMonitor()
 
@@ -220,6 +376,15 @@ def rate_limit(max_requests=MAX_REQUESTS_PER_WINDOW):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             ip = request.environ.get('REMOTE_ADDR', request.remote_addr)
+            
+            # Check if IP is whitelisted first (whitelisted IPs bypass all security)
+            if monitor.is_ip_whitelisted(ip):
+                monitor.log_request(ip, request.endpoint, request.headers.get('User-Agent', ''))
+                start_time = time.time()
+                result = f(*args, **kwargs)
+                response_time = time.time() - start_time
+                monitor.response_times.append(response_time)
+                return result
             
             # Check if IP is blocked
             if monitor.is_ip_blocked(ip):
@@ -405,7 +570,61 @@ def index():
 @app.route('/dashboard')
 def dashboard():
     """Security and monitoring dashboard"""
-    return render_template('dashboard.html')
+
+    # Load whitelist
+    try:
+        with open(WHITELISTED_IPS_FILE, "r") as file:
+            data = json.load(file)
+        whitelist_entries = data.get("whitelisted_ips", [])
+        whitelisted_ips = [entry["ip"] for entry in whitelist_entries]
+    except Exception as e:
+        print(f"[ERROR] Failed to load whitelist: {e}")
+        whitelisted_ips = []
+
+    # Get user IP
+    user_ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
+
+    # Determine access
+    access_granted = user_ip in whitelisted_ips
+
+    # Get current time in IST
+    utc_now = datetime.utcnow()
+    ist = pytz.timezone('Asia/Kolkata')
+    ist_now = utc_now.replace(tzinfo=pytz.utc).astimezone(ist)
+
+    # Format it in human-readable Indian format
+    formatted_time = ist_now.strftime("%d-%m-%Y %I:%M:%S %p IST")
+
+    # Prepare log entry
+    log_entry = {
+        "ip": user_ip,
+        "access_time": formatted_time,
+        "access_granted": access_granted
+    }
+
+    # Append to access log
+    try:
+        if os.path.exists(ACCESS_LOG_FILE):
+            with open(ACCESS_LOG_FILE, "r") as log_file:
+                log_data = json.load(log_file)
+        else:
+            log_data = []
+
+        log_data.append(log_entry)
+
+        with open(ACCESS_LOG_FILE, "w") as log_file:
+            json.dump(log_data, log_file, indent=2)
+
+    except Exception as e:
+        print(f"[ERROR] Failed to log access: {e}")
+
+    # Serve the page based on access
+    if access_granted:
+        return render_template('dashboard.html')
+    else:
+        return render_template('404.html'), 403
+
+
 
 @app.route('/api/dashboard/stats')
 def dashboard_stats():
@@ -417,10 +636,14 @@ def block_ip():
     """Block a suspicious IP address"""
     data = request.get_json()
     ip = data.get('ip')
+    reason = data.get('reason', 'Manual block via dashboard')
+    
     if ip:
-        monitor.blocked_ips.add(ip)
-        monitor.log_security_event("IP_BLOCKED", ip, "Manually blocked via dashboard")
-        return jsonify({'success': True, 'message': f'IP {ip} blocked successfully'})
+        success = monitor.add_blocked_ip(ip, reason)
+        if success:
+            return jsonify({'success': True, 'message': f'IP {ip} blocked successfully'})
+        else:
+            return jsonify({'success': False, 'message': f'Cannot block whitelisted IP {ip}'}), 400
     return jsonify({'success': False, 'message': 'Invalid IP address'}), 400
 
 @app.route('/api/dashboard/unblock-ip', methods=['POST'])
@@ -428,14 +651,46 @@ def unblock_ip():
     """Unblock an IP address"""
     data = request.get_json()
     ip = data.get('ip')
-    if ip and ip in monitor.blocked_ips:
-        monitor.blocked_ips.remove(ip)
-        monitor.log_security_event("IP_UNBLOCKED", ip, "Manually unblocked via dashboard")
-        return jsonify({'success': True, 'message': f'IP {ip} unblocked successfully'})
-    return jsonify({'success': False, 'message': 'IP not found in blocked list'}), 400
+    
+    if ip:
+        success = monitor.remove_blocked_ip(ip)
+        if success:
+            return jsonify({'success': True, 'message': f'IP {ip} unblocked successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'IP not found in blocked list'}), 400
+    return jsonify({'success': False, 'message': 'Invalid IP address'}), 400
+
+@app.route('/api/dashboard/whitelist-ip', methods=['POST'])
+def whitelist_ip():
+    """Add IP to whitelist"""
+    data = request.get_json()
+    ip = data.get('ip')
+    reason = data.get('reason', 'Manual whitelist via dashboard')
+    
+    if ip:
+        success = monitor.add_whitelisted_ip(ip, reason)
+        if success:
+            return jsonify({'success': True, 'message': f'IP {ip} whitelisted successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to whitelist IP'}), 500
+    return jsonify({'success': False, 'message': 'Invalid IP address'}), 400
+
+@app.route('/api/dashboard/remove-whitelist-ip', methods=['POST'])
+def remove_whitelist_ip():
+    """Remove IP from whitelist"""
+    data = request.get_json()
+    ip = data.get('ip')
+    
+    if ip:
+        success = monitor.remove_whitelisted_ip(ip)
+        if success:
+            return jsonify({'success': True, 'message': f'IP {ip} removed from whitelist successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'IP not found in whitelist'}), 400
+    return jsonify({'success': False, 'message': 'Invalid IP address'}), 400
 
 @app.route('/predict', methods=['POST'])
-@rate_limit(max_requests=10)  # Lower limit for prediction endpoint
+@rate_limit(max_requests=100)  
 def predict():
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'})
@@ -627,6 +882,103 @@ def home():
         monitor.log_error(request.remote_addr, "DATABASE_ERROR", str(e))
         abort(500)
 
+# NEW: Bulk IP management endpoints
+@app.route('/api/dashboard/bulk-block-ips', methods=['POST'])
+def bulk_block_ips():
+    """Block multiple IPs at once"""
+    data = request.get_json()
+    ips = data.get('ips', [])
+    reason = data.get('reason', 'Bulk block via dashboard')
+    
+    if not ips or not isinstance(ips, list):
+        return jsonify({'success': False, 'message': 'Invalid IP list'}), 400
+    
+    blocked_count = 0
+    failed_ips = []
+    
+    for ip in ips:
+        success = monitor.add_blocked_ip(ip.strip(), reason)
+        if success:
+            blocked_count += 1
+        else:
+            failed_ips.append(ip)
+    
+    return jsonify({
+        'success': True,
+        'message': f'Blocked {blocked_count} IPs successfully',
+        'blocked_count': blocked_count,
+        'failed_ips': failed_ips
+    })
+
+@app.route('/api/dashboard/bulk-whitelist-ips', methods=['POST'])
+def bulk_whitelist_ips():
+    """Whitelist multiple IPs at once"""
+    data = request.get_json()
+    ips = data.get('ips', [])
+    reason = data.get('reason', 'Bulk whitelist via dashboard')
+    
+    if not ips or not isinstance(ips, list):
+        return jsonify({'success': False, 'message': 'Invalid IP list'}), 400
+    
+    whitelisted_count = 0
+    
+    for ip in ips:
+        success = monitor.add_whitelisted_ip(ip.strip(), reason)
+        if success:
+            whitelisted_count += 1
+    
+    return jsonify({
+        'success': True,
+        'message': f'Whitelisted {whitelisted_count} IPs successfully',
+        'whitelisted_count': whitelisted_count
+    })
+
+@app.route('/api/dashboard/clear-blocked-ips', methods=['POST'])
+def clear_blocked_ips():
+    """Clear all blocked IPs"""
+    monitor.blocked_ips.clear()
+    monitor.save_blocked_ips()
+    monitor.log_security_event("BULK_UNBLOCK", "SYSTEM", "All blocked IPs cleared via dashboard")
+    return jsonify({'success': True, 'message': 'All blocked IPs cleared successfully'})
+
+@app.route('/api/dashboard/export-ips', methods=['GET'])
+def export_ips():
+    """Export blocked and whitelisted IPs"""
+    export_data = {
+        'export_timestamp': datetime.now().isoformat(),
+        'blocked_ips': list(monitor.blocked_ips),
+        'whitelisted_ips': list(monitor.whitelisted_ips),
+        'suspicious_ips': list(monitor.suspicious_ips)
+    }
+    return jsonify(export_data)
+
+@app.route('/api/dashboard/import-ips', methods=['POST'])
+def import_ips():
+    """Import blocked and whitelisted IPs"""
+    data = request.get_json()
+    
+    imported_blocked = 0
+    imported_whitelisted = 0
+    
+    # Import blocked IPs
+    if 'blocked_ips' in data:
+        for ip in data['blocked_ips']:
+            if monitor.add_blocked_ip(ip, "Imported via dashboard"):
+                imported_blocked += 1
+    
+    # Import whitelisted IPs
+    if 'whitelisted_ips' in data:
+        for ip in data['whitelisted_ips']:
+            if monitor.add_whitelisted_ip(ip, "Imported via dashboard"):
+                imported_whitelisted += 1
+    
+    return jsonify({
+        'success': True,
+        'message': f'Imported {imported_blocked} blocked IPs and {imported_whitelisted} whitelisted IPs',
+        'imported_blocked': imported_blocked,
+        'imported_whitelisted': imported_whitelisted
+    })
+
 @app.errorhandler(404)
 def not_found(e):
     monitor.log_error(request.remote_addr, "404_ERROR", f"Page not found: {request.url}")
@@ -634,15 +986,27 @@ def not_found(e):
 
 @app.errorhandler(403)
 def forbidden(e):
-    return render_template("403.html"), 403
+    main_line = "Your connection has been restricted due to suspicious activity."
+    line_2 = "If this is a mistake, please contact the administrator with your IP address and time of access."
+    error_code = "Error Code: 403 - Security Firewall"
+    points = "Firewall Triggered · IP Monitored · Rate Limit Enforced"
+    return render_template("error.html", main_line=main_line, line_2=line_2, error_code=error_code, points=points), 403
+
 
 @app.errorhandler(429)
 def rate_limit_exceeded(e):
     return jsonify({'error': 'Rate limit exceeded. Please try again later.'}), 429
 
+@app.errorhandler(500)
+def internal_server_error(e):
+    monitor.log_error(request.remote_addr, "500_ERROR", f"Internal server error: {str(e)}")
+    return jsonify({'error': 'Internal server error'}), 500
+
 if __name__ == '__main__':
     # ANSI color codes
     YELLOW = "\033[93m"
+    GREEN = "\033[92m"
+    RED = "\033[91m"
     RESET = "\033[0m"
 
     try:
@@ -651,12 +1015,24 @@ if __name__ == '__main__':
         details_loaded = load_condition_details()
 
         if model_loaded:
-            print(YELLOW + "Starting Flask server with security monitoring..." + RESET)
-            print(YELLOW + f"Dashboard available at: http://localhost:5000/dashboard" + RESET)
+            print(GREEN + "=" * 60 + RESET)
+            print(GREEN + "Flask Server Stats!" + RESET)
+            print(GREEN + "=" * 60 + RESET)
+            print(YELLOW + f"Main Application: http://localhost:5000/" + RESET)
+            print(YELLOW + f"Security Dashboard: http://localhost:5000/dashboard" + RESET)
+            print(GREEN + f"Loaded {len(monitor.blocked_ips)} blocked IPs from file" + RESET)
+            print(GREEN + f"Loaded {len(monitor.whitelisted_ips)} whitelisted IPs from file" + RESET)
+            print(YELLOW + "IP data will be automatically saved to JSON files" + RESET)
+            print(GREEN + "=" * 60 + RESET)
+            
             if not details_loaded:
-                print(YELLOW + "Warning: Condition details not loaded. Will proceed without detailed information." + RESET)
+                print(YELLOW + "⚠️  Warning: Condition details not loaded. Will proceed without detailed information." + RESET)
+            
+            
             app.run(debug=True, host='0.0.0.0', port=5000)
         else:
-            print(YELLOW + "Failed to load model. Server not started." + RESET)
-    except KeyboardInterrupt as e:
-        print("Stopping Server")
+            print(RED + "❌ Failed to load model. Server not started." + RESET)
+    except KeyboardInterrupt:
+        print(YELLOW + "\n🛑 Server stopped by user" + RESET)
+    except Exception as e:
+        print(RED + f"❌ Error starting server: {str(e)}" + RESET)

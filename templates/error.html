@@ -106,10 +106,10 @@
   <div class="card">
     <div class="emoji">🔒</div>
     <h1>Access Blocked</h1>
-    <p>Your connection has been restricted due to suspicious activity.</p>
-    <p>If this is a mistake, please contact the administrator with your IP address and time of access.</p>
-    <div class="error-code">Error Code: 403 - Security Firewall</div>
-    <div class="footer-note">Firewall Triggered · IP Monitored · Rate Limit Enforced</div>
+    <p>{{ main_line }}</p>
+    <p>{{line_2}}</p>
+    <div class="error-code">{{ error_code }}</div>
+    <div class="footer-note">{{ points | default('') }}</div>
   </div>
 </body>
 </html>

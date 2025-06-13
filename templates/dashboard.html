@@ -176,6 +176,7 @@
       color: white;
     }
 
+
     .btn-primary {
       background: #3498db;
       color: white;
@@ -442,7 +443,6 @@
       </div>
     </div>
 
-    <div id="alerts-container"></div>
 
     <div class="grid">
       <div class="card">
@@ -460,6 +460,7 @@
       </div>
     </div>
 
+    <div id="alerts-container"></div>
     <div class="grid">
       <div class="card">
         <h3>Security Events</h3>
@@ -472,8 +473,10 @@
         <h3>IP Management</h3>
         <div class="controls">
           <input type="text" id="ip-input" class="ip-input" placeholder="Enter IP address">
-          <button class="btn btn-danger" onclick="blockIP()">Block IP</button>
+          <button class="btn btn-success" onclick="whitelistIP()">WhiteList IP</button>
           <button class="btn btn-success" onclick="unblockIP()">Unblock IP</button>
+          <button class="btn btn-danger" onclick="blockIP()">Block IP</button>
+          <button class="btn btn-danger" onclick="remove_whitelistIP()">Remove WhiteListed IP</button>
         </div>
         <h4 style="margin-top: 20px; margin-bottom: 10px;">Blocked IPs:</h4>
         <div class="blocked-ips" id="blocked-ips">
@@ -853,13 +856,74 @@
       }
     }
 
+
+    async function whitelistIP() {
+      const ip = document.getElementById('ip-input').value.trim();
+      if (!ip) {
+        showAlert('warning', 'Please enter an IP address');
+        return;
+      }
+
+      // Prompt for password
+      const password = prompt("Enter password to whitelist IP:");
+      if (password !== '3177') {
+        showAlert('danger', 'Incorrect password. Access denied.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/dashboard/whitelist-ip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          showAlert('success', result.message);
+          document.getElementById('ip-input').value = '';
+          fetchStats(); // Refresh stats
+        } else {
+          showAlert('danger', result.message);
+        }
+      } catch (error) {
+        showAlert('danger', 'Error adding IP to whitelist');
+      }
+    }
+
+
+    async function remove_whitelistIP() {
+      const ip = document.getElementById('ip-input').value.trim();
+      if (!ip) {
+        showAlert('warning', 'Please enter an IP address');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/dashboard/remove-whitelist-ip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          showAlert('success', result.message);
+          document.getElementById('ip-input').value = '';
+          fetchStats(); // Refresh stats
+        } else {
+          showAlert('danger', result.message);
+        }
+      } catch (error) {
+        showAlert('danger', 'Error unblocking IP');
+      }
+    }
+
     // Initialize dashboard
     document.addEventListener('DOMContentLoaded', function () {
       // Initial load
       fetchStats();
 
-      // Auto-refresh every 2 seconds
-      setInterval(fetchStats, 2000);
 
       // Add Enter key support for IP input
       document.getElementById('ip-input').addEventListener('keypress', function (e) {
