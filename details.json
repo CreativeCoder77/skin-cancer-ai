@@ -1,0 +1,178 @@
+{
+  "skin_conditions": [
+    {
+      "name": "Tinea Ringworm Candidiasis",
+      "causes": [
+        "Superficial fungal infections caused by dermatophytes (Tinea) or yeast-like fungi (Candida species)",
+        "Flourish in warm, moist environments such as sweaty skin folds, tight clothing, and poor hygiene conditions",
+        "Can be contracted from direct skin contact, shared personal items, or contaminated surfaces"
+      ],
+      "potential_harms": [
+        "Persistent red, itchy, and scaly rashes that may resemble rings (in Tinea)",
+        "Skin breakdown leading to fissures, cracks, and increased risk of secondary bacterial infections",
+        "Can cause severe discomfort and affect daily activities if untreated"
+      ],
+      "possible_progression": [
+        "May spread to other areas of the skin, nails, or scalp",
+        "Chronic or recurrent infections may cause long-term skin discoloration, thickening, or scarring",
+        "Immunocompromised individuals are at risk for deeper or systemic fungal infections"
+      ],
+      "classification": "non-cancerous",
+      "urgency_level": "Moderate",
+      "image_path": "static/dataset/Tinea Ringworm Candidiasis"
+    },
+    {
+      "name": "Vascular Lesion",
+      "causes": [
+        "Congenital or acquired abnormalities in blood vessels (e.g., capillary malformations, hemangiomas)",
+        "May develop after trauma, aging, hormonal changes, or due to systemic vascular conditions"
+      ],
+      "potential_harms": [
+        "Usually asymptomatic but may cause significant cosmetic concerns",
+        "Some types (e.g., pyogenic granulomas) can bleed easily, ulcerate, or become painful"
+      ],
+      "possible_progression": [
+        "Most remain stable and harmless over time",
+        "Some may increase in size, become symptomatic, or require intervention for cosmetic or medical reasons"
+      ],
+      "classification": "benign",
+      "urgency_level": "Low",
+      "image_path": "static/dataset/Vascular Lesion"
+
+    },
+    {
+      "name": "Melanoma",
+      "causes": [
+        "Malignant transformation of melanocytes due to cumulative DNA damage",
+        "Predominantly triggered by UV radiation (natural sunlight or tanning beds), especially in fair-skinned individuals",
+        "Risk factors include family history, numerous atypical moles, and a history of severe sunburns"
+      ],
+      "potential_harms": [
+        "Highly aggressive skin cancer capable of rapid local invasion and distant metastasis",
+        "Can affect lymph nodes, lungs, brain, and other organs if not caught early",
+        "Early signs may appear subtle and be easily overlooked"
+      ],
+      "possible_progression": [
+        "Early-stage melanoma is potentially curable with surgical excision",
+        "Advanced stages may require immunotherapy, targeted therapy, or chemotherapy, with variable prognosis",
+        "Delayed detection significantly reduces survival rates"
+      ],
+      "classification": "cancer",
+      "urgency_level": "Critical",
+      "image_path": "static/dataset/Melanoma"
+
+    },
+    {
+      "name": "Squamous Cell Carcinoma",
+      "causes": [
+        "Uncontrolled growth of squamous cells caused by DNA mutations, commonly due to chronic UV exposure",
+        "Increased risk with fair skin, immunosuppression, exposure to carcinogens, or previous radiation therapy"
+      ],
+      "potential_harms": [
+        "Capable of local tissue invasion, especially in high-risk areas like the lips, ears, or genitals",
+        "Can metastasize to lymph nodes or distant organs if neglected",
+        "May present as a persistent, non-healing ulcer, rough scaly patch, or raised lesion"
+      ],
+      "possible_progression": [
+        "Highly treatable in early stages with excision or other localized therapies",
+        "Advanced disease requires more aggressive treatment and may be life-threatening"
+      ],
+      "classification": "cancer",
+      "urgency_level": "High",
+      "image_path": "static/dataset/Squamous Cell Carcinoma"
+
+    },
+    {
+      "name": "Dermatofibroma",
+      "causes": [
+        "Benign fibrous skin nodule, often forming in response to minor trauma like insect bites or ingrown hairs",
+        "More common in adults and frequently seen on the lower legs"
+      ],
+      "potential_harms": [
+        "Typically harmless but may cause localized itching, tenderness, or aesthetic discomfort",
+        "Rarely mistaken for melanoma or other growths due to appearance"
+      ],
+      "possible_progression": [
+        "Generally stable and non-progressive",
+        "Can be surgically removed if symptomatic or cosmetically unwanted"
+      ],
+      "classification": "benign",
+      "urgency_level": "Low",
+      "image_path": "static/dataset/Dermatofibroma"
+
+    },
+    {
+      "name": "Melanocytic Nevus",
+      "causes": [
+        "Clusters of pigment-producing melanocytes, often influenced by genetic predisposition and sun exposure",
+        "Can appear during childhood or develop later in life"
+      ],
+      "potential_harms": [
+        "Most moles are benign, but atypical or dysplastic nevi have a risk of malignant transformation",
+        "Changes in size, shape, border, or color may indicate melanoma"
+      ],
+      "possible_progression": [
+        "Stable moles typically do not require intervention",
+        "Regular monitoring is essential to detect early signs of melanoma development"
+      ],
+      "classification": "benign",
+      "urgency_level": "Moderate",
+      "image_path": "static/dataset/Melanocytic Nevus"
+
+    },
+    {
+      "name": "Atopic Dermatitis",
+      "causes": [
+        "Chronic inflammatory skin disorder caused by genetic mutations affecting the skin barrier",
+        "Triggered by allergens, irritants (soaps, fabrics), environmental changes, stress, or infections"
+      ],
+      "potential_harms": [
+        "Intense itching, inflammation, and dryness can severely impact quality of life",
+        "Scratching can cause skin damage and increase risk of bacterial, viral, or fungal infections"
+      ],
+      "possible_progression": [
+        "Flares and remissions are typical; poorly managed cases may become chronic and lichenified",
+        "Often associated with asthma, hay fever, and food allergies"
+      ],
+      "classification": "non-cancerous",
+      "urgency_level": "Moderate",
+      "image_path": "static/dataset/Atopic Dermatitis"
+    },
+    {
+      "name": "Benign Keratosis",
+      "causes": [
+        "Noncancerous epidermal growths commonly associated with aging",
+        "Exact cause unclear; likely involves genetic factors and cumulative sun exposure"
+      ],
+      "potential_harms": [
+        "Cosmetically concerning, especially when large, raised, or pigmented",
+        "Can become irritated, itchy, or inflamed if rubbed or scratched"
+      ],
+      "possible_progression": [
+        "Generally harmless and stable over time",
+        "May increase in number and size; lesions can be removed for cosmetic or comfort reasons"
+      ],
+      "classification": "benign",
+      "urgency_level": "Low",
+      "image_path": "static/dataset/Benign Keratosis"
+    },
+    {
+      "name": "Actinic Keratosis",
+      "causes": [
+        "Premalignant lesions resulting from long-term ultraviolet exposure",
+        "Common in fair-skinned individuals and those with high lifetime sun exposure"
+      ],
+      "potential_harms": [
+        "Can progress to invasive squamous cell carcinoma if untreated",
+        "Lesions may be rough, scaly, and sensitive, particularly on sun-exposed areas"
+      ],
+      "possible_progression": [
+        "Early treatment (e.g., cryotherapy, topical agents, photodynamic therapy) reduces cancer risk",
+        "Regular monitoring is critical to identify malignant transformation early"
+      ],
+      "classification": "precancerous",
+      "urgency_level": "High",
+      "image_path": "static/dataset/Actinic Keratosis"
+    }
+  ]
+}
