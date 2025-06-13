@@ -620,7 +620,11 @@ def dashboard():
 
     # Serve the page based on access
     if access_granted:
-        return render_template('dashboard.html')
+        with open(BLOCKED_IPS_FILE) as file:
+                data = json.load(file)
+        blocked_ips = data.get("blocked_ips", [])
+
+        return render_template('dashboard.html',blocked_ips=blocked_ips)
     else:
         return render_template('404.html'), 403
 

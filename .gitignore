@@ -4,3 +4,8 @@ val_flattened/
 .venv/
 .gitignore
 files/
+blocked_ips.json
+whitelisted_ips.json
+access_log.json
+uploads/
+files/
