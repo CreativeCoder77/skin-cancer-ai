@@ -1,0 +1,10 @@
+{
+  "whitelisted_ips": [
+    {
+      "ip": "",
+      "whitelisted_at": "2025-06-13T14:24:09.807491",
+      "reason": "Trusted IP - bypass all security checks"
+    }
+  ],
+  "last_updated": "2025-06-13T14:24:09.807491"
+}
