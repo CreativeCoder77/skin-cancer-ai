@@ -37,15 +37,18 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
 
 # Security and Monitoring Configuration
-DDOS_THRESHOLD = 1000000  # requests per minute from single IP
-SUSPICIOUS_THRESHOLD = 100  # suspicious requests per minute
-RATE_LIMIT_WINDOW = 60  # seconds
-MAX_REQUESTS_PER_WINDOW = 100  # max requests per IP per window per minute
+DDOS_THRESHOLD = 200           # requests per minute from single IP (50 req/sec) – likely botnet-level
+SUSPICIOUS_THRESHOLD = 200      # suspicious requests per minute from single IP (3–4 per second)
+RATE_LIMIT_WINDOW = 60          # seconds
+MAX_REQUESTS_PER_WINDOW = 60    # max normal requests per IP per minute (1 request/sec)
 
 # JSON file paths for persistent storage
 BLOCKED_IPS_FILE = 'blocked_ips.json'
 WHITELISTED_IPS_FILE = 'whitelisted_ips.json'
 ACCESS_LOG_FILE = "access_log.json"
+
+server_closed = False
+
 
 # Global monitoring variables
 class ServerMonitor:
@@ -60,6 +63,9 @@ class ServerMonitor:
         self.suspicious_ips = set()
         self.blocked_ips = set()
         self.whitelisted_ips = set()  # NEW: Whitelisted IPs
+        
+        # NEW: Store detailed block information
+        self.blocked_ips_details = {}  # IP -> {reason, blocked_at, block_type, auto_block_trigger}
         
         # Load persistent data
         self.load_blocked_ips()
@@ -93,32 +99,59 @@ class ServerMonitor:
                     # Convert list back to set and load with metadata
                     for ip_data in data.get('blocked_ips', []):
                         if isinstance(ip_data, dict):
-                            self.blocked_ips.add(ip_data['ip'])
+                            ip = ip_data['ip']
+                            self.blocked_ips.add(ip)
+                            # Store detailed information
+                            self.blocked_ips_details[ip] = {
+                                'reason': ip_data.get('reason', 'Unknown'),
+                                'blocked_at': ip_data.get('blocked_at', datetime.now().isoformat()),
+                                'block_type': ip_data.get('block_type', 'manual'),
+                                'auto_block_trigger': ip_data.get('auto_block_trigger', None),
+                                'request_count_at_block': ip_data.get('request_count_at_block', 0),
+                                'detection_method': ip_data.get('detection_method', 'manual')
+                            }
                         else:
                             # Handle old format (just IP strings)
                             self.blocked_ips.add(ip_data)
+                            self.blocked_ips_details[ip_data] = {
+                                'reason': 'Legacy block (no details available)',
+                                'blocked_at': datetime.now().isoformat(),
+                                'block_type': 'legacy',
+                                'auto_block_trigger': None,
+                                'request_count_at_block': 0,
+                                'detection_method': 'legacy'
+                            }
                 print(f"Loaded {len(self.blocked_ips)} blocked IPs from file")
             else:
                 print("No blocked IPs file found, starting with empty list")
         except Exception as e:
             print(f"Error loading blocked IPs: {e}")
             self.blocked_ips = set()
+            self.blocked_ips_details = {}
     
     def save_blocked_ips(self):
-        """Save blocked IPs to JSON file"""
+        """Save blocked IPs to JSON file with detailed information"""
         try:
-            # Create data structure with metadata
+            # Create data structure with detailed metadata
             blocked_data = []
             for ip in self.blocked_ips:
+                ip_details = self.blocked_ips_details.get(ip, {})
                 blocked_data.append({
                     'ip': ip,
-                    'blocked_at': datetime.now().isoformat(),
-                    'reason': 'Security violation or manual block'
+                    'blocked_at': ip_details.get('blocked_at', datetime.now().isoformat()),
+                    'reason': ip_details.get('reason', 'Unknown'),
+                    'block_type': ip_details.get('block_type', 'manual'),
+                    'auto_block_trigger': ip_details.get('auto_block_trigger', None),
+                    'request_count_at_block': ip_details.get('request_count_at_block', 0),
+                    'detection_method': ip_details.get('detection_method', 'manual')
                 })
             
             data = {
                 'blocked_ips': blocked_data,
-                'last_updated': datetime.now().isoformat()
+                'last_updated': datetime.now().isoformat(),
+                'total_blocked_count': len(self.blocked_ips),
+                'auto_blocks': len([ip for ip in self.blocked_ips if self.blocked_ips_details.get(ip, {}).get('block_type') == 'auto']),
+                'manual_blocks': len([ip for ip in self.blocked_ips if self.blocked_ips_details.get(ip, {}).get('block_type') == 'manual'])
             }
             
             with open(BLOCKED_IPS_FILE, 'w') as f:
@@ -170,21 +203,51 @@ class ServerMonitor:
         except Exception as e:
             print(f"Error saving whitelisted IPs: {e}")
     
-    def add_blocked_ip(self, ip, reason="Manual block"):
-        """Add IP to blocked list and save to file"""
+    def add_blocked_ip(self, ip, reason="Manual block", block_type="manual", auto_block_trigger=None):
+        """Add IP to blocked list with detailed reason and type"""
         if ip not in self.whitelisted_ips:  # Don't block whitelisted IPs
             self.blocked_ips.add(ip)
+            
+            # Store detailed information about the block
+            current_request_count = len(self.ip_requests.get(ip, []))
+            
+            self.blocked_ips_details[ip] = {
+                'reason': reason,
+                'blocked_at': datetime.now().isoformat(),
+                'block_type': block_type,  # 'auto' or 'manual'
+                'auto_block_trigger': auto_block_trigger,  # e.g., 'ddos_detection', 'rate_limit_exceeded'
+                'request_count_at_block': current_request_count,
+                'detection_method': self._get_detection_method(block_type, auto_block_trigger)
+            }
+            
             self.save_blocked_ips()
-            self.log_security_event("IP_BLOCKED", ip, reason)
+            self.log_security_event("IP_BLOCKED", ip, f"{block_type.upper()}: {reason}")
             return True
         else:
             self.log_security_event("BLOCK_ATTEMPT_WHITELISTED", ip, f"Attempt to block whitelisted IP: {reason}")
             return False
     
+    def _get_detection_method(self, block_type, auto_block_trigger):
+        """Get human-readable detection method"""
+        if block_type == "auto":
+            if auto_block_trigger == "ddos_detection":
+                return "Automated DDoS Detection"
+            elif auto_block_trigger == "rate_limit_exceeded":
+                return "Rate Limit Violation"
+            elif auto_block_trigger == "suspicious_activity":
+                return "Suspicious Activity Pattern"
+            else:
+                return "Automated Security System"
+        else:
+            return "Manual Block via Dashboard"
+    
     def remove_blocked_ip(self, ip):
         """Remove IP from blocked list and save to file"""
         if ip in self.blocked_ips:
             self.blocked_ips.remove(ip)
+            # Remove detailed information
+            if ip in self.blocked_ips_details:
+                del self.blocked_ips_details[ip]
             self.save_blocked_ips()
             self.log_security_event("IP_UNBLOCKED", ip, "Manually unblocked")
             return True
@@ -196,6 +259,8 @@ class ServerMonitor:
         # If IP was blocked, remove it from blocked list
         if ip in self.blocked_ips:
             self.blocked_ips.remove(ip)
+            if ip in self.blocked_ips_details:
+                del self.blocked_ips_details[ip]
             self.save_blocked_ips()
         self.save_whitelisted_ips()
         self.log_security_event("IP_WHITELISTED", ip, reason)
@@ -277,8 +342,13 @@ class ServerMonitor:
                 if ip not in self.suspicious_ips:
                     self.suspicious_ips.add(ip)
                     self.log_security_event("DDoS_DETECTED", ip, f"Exceeded {DDOS_THRESHOLD} requests")
-                    # Auto-block DDoS IPs
-                    self.add_blocked_ip(ip, f"Auto-blocked: DDoS detected - {DDOS_THRESHOLD} requests")
+                    # Auto-block DDoS IPs with specific reason
+                    self.add_blocked_ip(
+                        ip, 
+                        f"Automated DDoS Protection - {DDOS_THRESHOLD}+ requests in {RATE_LIMIT_WINDOW} seconds", 
+                        block_type="auto", 
+                        auto_block_trigger="ddos_detection"
+                    )
 
     def log_error(self, ip, error_type, details):
         """Log error and update metrics"""
@@ -311,12 +381,23 @@ class ServerMonitor:
                     self.suspicious_ips.add(ip)
                     self.log_security_event("SUSPICIOUS_ACTIVITY", ip, 
                                           f"High request rate: {len(timestamps)} requests")
+                    # Auto-block for suspicious activity
+                    self.add_blocked_ip(
+                        ip, 
+                        f"Automated Threat Detection - {len(timestamps)} requests in {RATE_LIMIT_WINDOW} seconds", 
+                        block_type="auto", 
+                        auto_block_trigger="suspicious_activity"
+                    )
     
     def is_ip_blocked(self, ip):
         """Check if IP is blocked (whitelisted IPs are never blocked)"""
         if self.is_ip_whitelisted(ip):
             return False
         return ip in self.blocked_ips
+    
+    def get_blocked_ip_details(self, ip):
+        """Get detailed information about a blocked IP"""
+        return self.blocked_ips_details.get(ip, {})
     
     def get_stats(self):
         """Get current server statistics"""
@@ -342,12 +423,27 @@ class ServerMonitor:
                 'user_agent': info['user_agent'][:100],  # Truncate long user agents
                 'is_suspicious': ip in self.suspicious_ips,
                 'is_blocked': ip in self.blocked_ips,
-                'is_whitelisted': ip in self.whitelisted_ips
+                'is_whitelisted': ip in self.whitelisted_ips,
+                'block_details': self.get_blocked_ip_details(ip) if ip in self.blocked_ips else None
             })
         
         # Sort by last seen (most recent first) and limit to 50
         active_ips_list.sort(key=lambda x: x['last_seen'], reverse=True)
         active_ips_list = active_ips_list[:50]
+        
+        # NEW: Prepare detailed blocked IPs list
+        blocked_ips_detailed = []
+        for ip in self.blocked_ips:
+            ip_details = self.get_blocked_ip_details(ip)
+            blocked_ips_detailed.append({
+                'ip': ip,
+                'reason': ip_details.get('reason', 'Unknown'),
+                'blocked_at': ip_details.get('blocked_at', 'Unknown'),
+                'block_type': ip_details.get('block_type', 'manual'),
+                'auto_block_trigger': ip_details.get('auto_block_trigger', None),
+                'request_count_at_block': ip_details.get('request_count_at_block', 0),
+                'detection_method': ip_details.get('detection_method', 'Unknown')
+            })
         
         return {
             'uptime': uptime,
@@ -358,17 +454,39 @@ class ServerMonitor:
             'errors_per_second': list(self.errors_per_second),
             'suspicious_ips_count': len(self.suspicious_ips),
             'blocked_ips_count': len(self.blocked_ips),
-            'whitelisted_ips_count': len(self.whitelisted_ips),  # NEW
+            'whitelisted_ips_count': len(self.whitelisted_ips),
             'recent_security_events': list(self.security_events)[-10:],  # Last 10 events
             'avg_response_time': sum(self.response_times) / len(self.response_times) if self.response_times else 0,
-            'active_ips': active_ips_list,  # NEW: Active IPs data
-            'unique_ips_count': len(self.active_ips),  # NEW: Count of unique IPs
-            'blocked_ips_list': list(self.blocked_ips),  # NEW: List of blocked IPs
-            'whitelisted_ips_list': list(self.whitelisted_ips)  # NEW: List of whitelisted IPs
+            'active_ips': active_ips_list,
+            'unique_ips_count': len(self.active_ips),
+            'blocked_ips_list': list(self.blocked_ips),  # Keep for backward compatibility
+            'blocked_ips_detailed': blocked_ips_detailed,  # NEW: Detailed blocked IPs
+            'whitelisted_ips_list': list(self.whitelisted_ips),
+            'auto_blocks_count': len([ip for ip in self.blocked_ips if self.blocked_ips_details.get(ip, {}).get('block_type') == 'auto']),
+            'manual_blocks_count': len([ip for ip in self.blocked_ips if self.blocked_ips_details.get(ip, {}).get('block_type') == 'manual'])
         }
 
 # Initialize monitor
 monitor = ServerMonitor()
+
+@app.before_request
+def check_server_status():
+    global server_closed
+    if server_closed:
+        allowed_paths = ['/dashboard', '/toggle']
+        if request.path.startswith('/static/') or request.path in allowed_paths:
+            return  # allow
+        return render_template("closed.html")
+
+@app.route('/toggle', methods=['POST'])
+def toggle():
+    global server_closed
+    server_closed = not server_closed
+    return jsonify({
+        "status": "⚠️ Server is CLOSED to all except /dashboard" if server_closed else "✅ Server is OPEN",
+        "button": "Reopen Server" if server_closed else "Close Server"
+    })
+
 
 # Security decorator for rate limiting
 def rate_limit(max_requests=MAX_REQUESTS_PER_WINDOW):
@@ -403,6 +521,13 @@ def rate_limit(max_requests=MAX_REQUESTS_PER_WINDOW):
             
             if recent_requests > max_requests:
                 monitor.log_error(ip, "RATE_LIMIT_EXCEEDED", f"Exceeded {max_requests} requests per minute")
+                # Auto-block for rate limit exceeded
+                monitor.add_blocked_ip(
+                    ip, 
+                    f"Rate Limit Exceeded - {recent_requests} requests in {RATE_LIMIT_WINDOW} seconds", 
+                    block_type="auto", 
+                    auto_block_trigger="rate_limit_exceeded"
+                )
                 return jsonify({'error': 'Rate limit exceeded'}), 429
             
             start_time = time.time()
@@ -561,6 +686,7 @@ def predict_image(image_path):
     except Exception as e:
         return {'error': str(e)}
 
+
 # Routes with security monitoring
 @app.route('/')
 @rate_limit()
@@ -570,6 +696,7 @@ def index():
 @app.route('/dashboard')
 def dashboard():
     """Security and monitoring dashboard"""
+    global server_closed  # Add this if 'server_closed' is used globally
 
     # Load whitelist
     try:
@@ -581,50 +708,65 @@ def dashboard():
         print(f"[ERROR] Failed to load whitelist: {e}")
         whitelisted_ips = []
 
-    # Get user IP
     user_ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
-
-    # Determine access
     access_granted = user_ip in whitelisted_ips
 
-    # Get current time in IST
+    # Get time info
     utc_now = datetime.utcnow()
     ist = pytz.timezone('Asia/Kolkata')
     ist_now = utc_now.replace(tzinfo=pytz.utc).astimezone(ist)
-
-    # Format it in human-readable Indian format
+    hour_block = ist_now.strftime("%d-%m-%Y %H")
     formatted_time = ist_now.strftime("%d-%m-%Y %I:%M:%S %p IST")
 
-    # Prepare log entry
     log_entry = {
         "ip": user_ip,
-        "access_time": formatted_time,
-        "access_granted": access_granted
+        "latest_access_time": formatted_time,
+        "access_count": 1
     }
 
-    # Append to access log
+    # Log access
     try:
         if os.path.exists(ACCESS_LOG_FILE):
             with open(ACCESS_LOG_FILE, "r") as log_file:
-                log_data = json.load(log_file)
+                access_log = json.load(log_file)
         else:
-            log_data = []
+            access_log = {}
 
-        log_data.append(log_entry)
+        if hour_block not in access_log:
+            access_log[hour_block] = []
+
+        ip_found = False
+        for entry in access_log[hour_block]:
+            if entry["ip"] == user_ip:
+                entry["access_count"] += 1
+                entry["latest_access_time"] = formatted_time
+                ip_found = True
+                break
+
+        if not ip_found:
+            access_log[hour_block].append(log_entry)
 
         with open(ACCESS_LOG_FILE, "w") as log_file:
-            json.dump(log_data, log_file, indent=2)
+            json.dump(access_log, log_file, indent=2)
 
     except Exception as e:
         print(f"[ERROR] Failed to log access: {e}")
 
-    # Serve the page based on access
+    # Serve dashboard
     if access_granted:
-        with open(BLOCKED_IPS_FILE) as file:
+        try:
+            with open(BLOCKED_IPS_FILE) as file:
                 data = json.load(file)
-        blocked_ips = data.get("blocked_ips", [])
+            blocked_ips = data.get("blocked_ips", [])
+        except Exception as e:
+            print(f"[ERROR] Could not load blocked IPs: {e}")
+            blocked_ips = []
 
-        return render_template('dashboard.html',blocked_ips=blocked_ips)
+
+        status_text = "⚠️ Server is CLOSED to all except /dashboard" if server_closed else "✅ Server is OPEN"
+        button_text = "Reopen Server" if server_closed else "Close Server"
+
+        return render_template('dashboard.html', blocked_ips=blocked_ips, status_text=status_text, button_text=button_text)
     else:
         return render_template('404.html'), 403
 

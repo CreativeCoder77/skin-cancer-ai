@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Server Security Dashboard</title>
+  <title>AI Skin Analysis Server Security Dashboard</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <link rel="stylesheet" href="static/dashboard.css">
 </head>
@@ -12,7 +12,8 @@
 <body>
   <div class="dashboard-container">
     <div class="header">
-      <h1><span class="live-indicator"></span>Server Security Dashboard</h1>
+      <h1><span class="live-indicator"></span>AI Skin Analysis Server Security Dashboard <a
+          style="text-decoration: none;" href="/">🏠</a></h1>
       <div class="server-status">
         <div class="status-item">
           <div class="status-value status-online" id="server-status">ONLINE</div>
@@ -20,7 +21,7 @@
         </div>
         <div class="status-item">
           <div class="status-value" id="uptime">0s</div>
-          <div class="status-label">Uptime</div>
+          <div class="status-label">Server Uptime</div>
         </div>
         <div class="status-item">
           <div class="status-value" id="total-requests">0</div>
@@ -52,19 +53,11 @@
       </div>
     </div>
 
-
     <div class="grid">
       <div class="card">
         <h3>Real-Time Request Monitoring</h3>
         <div class="chart-container">
           <canvas id="requestChart"></canvas>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Error Rate Tracking</h3>
-        <div class="chart-container">
-          <canvas id="errorChart"></canvas>
         </div>
       </div>
     </div>
@@ -134,6 +127,43 @@
     </div>
   </div>
 
-<script src="static/dashboard.js"></script>
+    <p id="status">{{ status_text }}</p>
+    <button id="toggle-btn" onclick="toggleServer()">
+        {{ button_text }}
+    </button>
+
+    <script>
+        function toggleServer() {
+            const statusEl = document.getElementById("status");
+            const btnEl = document.getElementById("toggle-btn");
+            
+            // Add loading state
+            btnEl.style.opacity = "0.7";
+            btnEl.disabled = true;
+            
+            fetch('/toggle', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    statusEl.innerText = data.status;
+                    btnEl.innerText = data.button;
+                    
+                    // Add pulse animation to status
+                    statusEl.classList.add('status-update');
+                    setTimeout(() => statusEl.classList.remove('status-update'), 600);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    statusEl.innerText = "Error occurred";
+                })
+                .finally(() => {
+                    // Reset button state
+                    btnEl.style.opacity = "1";
+                    btnEl.disabled = false;
+                });
+        }
+    </script>
+
+  <script src="static/dashboard.js"></script>
 </body>
+
 </html>

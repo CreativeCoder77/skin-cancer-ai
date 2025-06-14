@@ -23,6 +23,19 @@ const chartOptions = {
     },
     animation: {
         duration: 300
+    },
+    elements: {
+        point: {
+            radius: 2,
+            hoverRadius: 4
+        },
+        line: {
+            borderWidth: 2,
+            tension: 0.4
+        }
+    },
+    interaction: {
+        intersect: false
     }
 };
 
@@ -38,27 +51,23 @@ const requestChart = new Chart(requestCtx, {
             borderColor: '#3498db',
             backgroundColor: 'rgba(52, 152, 219, 0.1)',
             fill: true,
-            tension: 0.4
+            tension: 0.4,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            borderWidth: 2
         }]
     },
-    options: chartOptions
-});
-
-const errorCtx = document.getElementById('errorChart').getContext('2d');
-const errorChart = new Chart(errorCtx, {
-    type: 'line',
-    data: {
-        labels: Array.from({ length: 60 }, (_, i) => i - 59),
-        datasets: [{
-            label: 'Errors/Second',
-            data: Array(60).fill(0),
-            borderColor: '#e74c3c',
-            backgroundColor: 'rgba(231, 76, 60, 0.1)',
-            fill: true,
-            tension: 0.4
-        }]
-    },
-    options: chartOptions
+    options: {
+        ...chartOptions,
+        scales: {
+            ...chartOptions.scales,
+            y: {
+                ...chartOptions.scales.y,
+                suggestedMin: 0,
+                suggestedMax: 10
+            }
+        }
+    }
 });
 
 const performanceCtx = document.getElementById('performanceChart').getContext('2d');
@@ -130,7 +139,7 @@ function updateActiveIPs() {
         ipDiv.className = ipClass;
         ipDiv.innerHTML = `
             <div class="ip-main">
-                <div class="ip-address">${ipInfo.ip}${statusBadge}</div>
+                <div class="ip-address">${ipInfo.ip} ${statusBadge}</div>
                 <div class="ip-details">
                     Last: ${ipInfo.last_endpoint} | 
                     UA: ${ipInfo.user_agent.substring(0, 50)}${ipInfo.user_agent.length > 50 ? '...' : ''}
@@ -197,14 +206,21 @@ function showAlert(type, message, id = null) {
 }
 
 function updateCharts() {
-    // Update request chart
+    // Update request chart with enhanced visibility
     const currentRps = stats.requests_per_second ? stats.requests_per_second[stats.requests_per_second.length - 1] : 0;
-    requestChart.data.datasets[0].data = stats.requests_per_second || Array(60).fill(0);
+    const requestData = stats.requests_per_second || Array(60).fill(0);
+    
+    // Ensure the chart always shows lines by setting minimum scale based on data
+    const maxValue = Math.max(...requestData);
+    const minValue = Math.min(...requestData.filter(val => val > 0));
+    
+    requestChart.data.datasets[0].data = requestData;
+    
+    // Dynamic scaling to ensure lines are always visible
+    requestChart.options.scales.y.suggestedMax = Math.max(maxValue * 1.2, 5);
+    requestChart.options.scales.y.suggestedMin = Math.max(0, minValue * 0.8);
+    
     requestChart.update('none');
-
-    // Update error chart
-    errorChart.data.datasets[0].data = stats.errors_per_second || Array(60).fill(0);
-    errorChart.update('none');
 
     // Update performance chart
     const errorRate = stats.total_requests > 0 ? ((stats.total_errors / stats.total_requests) * 100) : 0;
@@ -257,7 +273,7 @@ function updateUI() {
 
     document.getElementById('suspicious-count').textContent = stats.suspicious_ips_count || 0;
     document.getElementById('blocked-count').textContent = stats.blocked_ips_count || 0;
-    document.getElementById('unique-ips').textContent = stats.unique_ips_count || 0; // NEW
+    document.getElementById('unique-ips').textContent = stats.unique_ips_count || 0;
 
     // Show alerts based on thresholds
     if (currentRps > 50) {
@@ -282,7 +298,7 @@ async function fetchStats() {
         updateUI();
         updateCharts();
         updateSecurityEvents();
-        updateActiveIPs(); // NEW: Update active IPs display
+        updateActiveIPs();
     } catch (error) {
         console.error('Error fetching stats:', error);
         document.getElementById('server-status').textContent = 'ERROR';
@@ -412,7 +428,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Initial load
     fetchStats();
 
-
+    // Refresh data every 2 seconds
+    setInterval(fetchStats, 2000);
 
     // Add Enter key support for IP input
     document.getElementById('ip-input').addEventListener('keypress', function (e) {
@@ -422,7 +439,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     console.log('Security Dashboard initialized');
-
 
     // More complete keyboard blocking
     document.addEventListener('keydown', function (e) {
@@ -453,5 +469,3 @@ document.addEventListener('DOMContentLoaded', function () {
         return false;
     });
 });
-
-
