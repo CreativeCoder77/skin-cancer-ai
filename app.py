@@ -4,9 +4,13 @@ import logging
 import json
 import time
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict, deque
+
 from flask import Flask, request, render_template, jsonify, abort, send_from_directory
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
 from werkzeug.utils import secure_filename
 import base64
 from functools import wraps
@@ -41,6 +45,14 @@ DDOS_THRESHOLD = 200           # requests per minute from single IP (50 req/sec)
 SUSPICIOUS_THRESHOLD = 200      # suspicious requests per minute from single IP (3–4 per second)
 RATE_LIMIT_WINDOW = 60          # seconds
 MAX_REQUESTS_PER_WINDOW = 60    # max normal requests per IP per minute (1 request/sec)
+
+
+limiter = Limiter(
+    get_remote_address,   # Uses request.remote_addr by default
+    app=app,
+    default_limits=["100 per hour"]  # You can change this as needed
+)
+
 
 # JSON file paths for persistent storage
 BLOCKED_IPS_FILE = 'blocked_ips.json'
